@@ -1,12 +1,13 @@
-import requests
 import json
 import time
+
+import requests
 
 """ 
     Requests an api token using the Lime Blue private information. I should have a look to see what the whole response looks like. I may use a different authenication
     method in the future.
 """
-def get_access_token(client_id: str, client_secret: str) -> str:
+def get_base_and_headers(client_id:str, client_secret:str) -> tuple:
 
     url = "https://auth.tidal.com/v1/oauth2/token"
     body = {
@@ -19,13 +20,21 @@ def get_access_token(client_id: str, client_secret: str) -> str:
     json_response = json.loads(response.content)
     access_token = json_response["access_token"]
 
-    return access_token
+    base_url = "https://openapi.tidal.com/v2"
+    headers = {
+        "Authorization": "Bearer " + access_token
+    }
 
-""" The repeat code for when I make a request to the api. It's poorly done I just made this in a hurry and it needs to be improved on ASAP """
+    return base_url, headers
+
+""" 
+    The repeat code for when I make a request to the api. It's poorly done I just made this in a hurry and it needs to be improved on ASAP 
+    I've done some testing and I think I can make more calls than this quickly without the api bugging on me
+"""
 def get_request(url: str, headers: str):
     
     response = requests.get(url=url, headers=headers)
-    time.sleep(0.3)
+    time.sleep(0.25) # gonna try implement this differently so it waits during busy times but deosn't wait during api quiet chunks of code
     json_response = json.loads(response.content)
     
     return json_response
@@ -37,6 +46,7 @@ def get_request(url: str, headers: str):
     
     Nervous about having recursion here as I'm always told it's risky
 """
+# Keep the api throttled here cus I don't know how many pages there are
 def get_all_ids(base_url: str, headers: str, json: str) -> list[str]:
 
     ids = [id_dict["id"] for id_dict in json["data"]]
@@ -56,7 +66,7 @@ def get_link_ids(base_url: str, headers: str, self: str, json: str, link_tups: t
     self_dict = {}
 
     return_links = [tup[0] for tup in link_tups if tup[1]]
-    if len(return_links):
+    if len(return_links): # Might not need this if. I think if I call a loop over an empty list nothing happens
         for link in return_links:
             link_data = get_request(url=base_url+json[link]["links"]["self"], headers=headers)
             self_dict[self + link.capitalize() + "Id"] = get_all_ids(base_url=base_url, headers=headers, json=link_data)
@@ -80,21 +90,21 @@ def get_artist_details(base_url: str, headers: str, country_code: str, artist_id
     return artist | link_ids_dict
 
 """ Returns a dictionary of data from an album request along with any related information that has been requested """
+# I don't think this will need any throttling as the code can slow it down enough
 def get_album_details(base_url: str, headers: str, country_code: str, album_id: str, return_attributes: bool=True, return_artists: bool=False, return_genres: bool=False, return_cover: bool=False, return_tracks: bool=False) -> dict:
 
     json_album = get_request(url=f"{base_url}/albums/{album_id}?countryCode={country_code}&collapseBy=FINGERPRINT", headers=headers)
 
     album = {}
     if return_attributes:
-        album_attributes = json_album["data"]["attributes"]
         album["albumId"] = album_id
-        album["albumTitle"] = album_attributes["title"]
-        album["albumUpc"] = album_attributes["barcodeId"]
-        album["albumNumberOfVolumes"] = album_attributes["numberOfVolumes"]
-        album["albumNumberOfItems"] = album_attributes["numberOfItems"] # I just added this line
-        album["albumReleaseDate"] = album_attributes["releaseDate"]
-        album["albumLabel"] = album_attributes["copyright"]["text"]
-        album["albumType"] = album_attributes["type"]
+        album["albumTitle"] = json_album["data"]["attributes"]["title"]
+        album["albumUpc"] = json_album["data"]["attributes"]["barcodeId"]
+        album["albumNumberOfVolumes"] = json_album["data"]["attributes"]["numberOfVolumes"]
+        album["albumNumberOfItems"] = json_album["data"]["attributes"]["numberOfItems"]
+        album["albumReleaseDate"] = json_album["data"]["attributes"]["releaseDate"]
+        album["albumLabel"] = json_album["data"]["attributes"]["copyright"]["text"]
+        album["albumType"] = json_album["data"]["attributes"]["type"]
 
     link_tups = (("artists", return_artists), ("genres", return_genres), ("coverArt", return_cover), ("items", return_tracks))
     link_ids_dict = get_link_ids(base_url=base_url, headers=headers, self="album", json=json_album["data"]["relationships"], link_tups=link_tups)
@@ -102,19 +112,19 @@ def get_album_details(base_url: str, headers: str, country_code: str, album_id: 
     return album | link_ids_dict
 
 """ Returns a dictionary of data from an track request along with any related information that has been requested """
+# I don't think this will need any throttling as the code can slow it down enough
 def get_track_details(base_url: str, headers: str, country_code: str, track_id: str, return_attributes: bool=True, return_albums: bool=False, return_genres: bool=False, return_artists: bool=False) -> dict:
 
     json_track = get_request(url=f"{base_url}/tracks/{track_id}?countryCode={country_code}", headers=headers) # No collapse by because tracks tend not to have more than 20 albums, genres and artists
     
     track = {}
     if return_attributes:
-        track_attributes = json_track["data"]["attributes"]
         track["trackId"] = track_id
-        track["trackTitle"] = track_attributes["title"]
-        track["trackVersion"] = track_attributes["version"]
-        track["trackIsrc"] = track_attributes["isrc"]
-        track["trackLabel"] = track_attributes["copyright"]["text"]
-        track["trackDuration"] = track_attributes["duration"]
+        track["trackTitle"] = json_track["data"]["attributes"]["title"]
+        track["trackVersion"] = json_track["data"]["attributes"]["version"]
+        track["trackIsrc"] = json_track["data"]["attributes"]["isrc"]
+        track["trackLabel"] = json_track["data"]["attributes"]["copyright"]["text"]        
+        track["trackDuration"] = json_track["data"]["attributes"]["duration"]
 
     link_tups = (("albums", return_albums), ("genres", return_genres), ("artists", return_artists))
     link_ids_dict = get_link_ids(base_url=base_url, headers=headers, self="track", json=json_track["data"]["relationships"], link_tups=link_tups)
@@ -122,16 +132,16 @@ def get_track_details(base_url: str, headers: str, country_code: str, track_id: 
     return track | link_ids_dict
 
 """ Returns a dictionary of data from an playlist request along with any related information that has been requested """
+# I don't think this will need any throttling as the code can slow it down enough
 def get_playlist_details(base_url: str, headers: str, country_code: str, playlist_id: str, return_attributes: bool=True, return_cover: bool=False, return_items: bool=False) -> dict:
 
     json_playlist = get_request(url=f"{base_url}/playlists/{playlist_id}?countryCode={country_code}", headers=headers) # I think I need collapseBy=FINGERPRINT
     
     playlist = {}
     if return_attributes:
-        playlist_attributes = json_playlist["data"]["attributes"]
         playlist["playlistId"] = playlist_id
-        playlist["playlistName"] = playlist_attributes["name"]
-        playlist["numberOfItems"] = playlist_attributes["numberOfItems"]
+        playlist["playlistName"] = json_playlist["data"]["attributes"]["name"]
+        playlist["numberOfItems"] = json_playlist["data"]["attributes"]["numberOfItems"]
 
     link_tups = (("coverArt", return_cover), ("items", return_items))
     link_ids_dict = get_link_ids(base_url=base_url, headers=headers, self="playlist", json=json_playlist["data"]["relationships"], link_tups=link_tups)
@@ -139,16 +149,18 @@ def get_playlist_details(base_url: str, headers: str, country_code: str, playlis
     return playlist | link_ids_dict
 
 """ This function has to use dynamic programming to help with the tidal's request throttling. """
+# I don't think this will need any throttling as the code can slow it down enough
 def get_playlist_data(base_url: str, headers: str, country_code: str, playlist_id: str) -> list[dict]:
 
     playlist = []
     
     sparse_playlist = get_playlist_details(base_url=base_url, headers=headers, country_code=country_code, playlist_id=playlist_id, return_items=True)
 
+    # These are the dictionaries for dynamic programming
     albums = {}
     artists = {}
 
-    for item_id in sparse_playlist["playlistItemId"]:
+    for item_id in sparse_playlist["playlistItemsId"]:
         
         track_dict = {}
         track = get_track_details(base_url=base_url, headers=headers, country_code=country_code, track_id=item_id, return_albums=True, return_artists=True)
@@ -157,7 +169,7 @@ def get_playlist_data(base_url: str, headers: str, country_code: str, playlist_i
             if artist_id not in artists.keys():
                 artists[artist_id] = get_artist_details(base_url=base_url, headers=headers, country_code=country_code, artist_id=artist_id)["artistTitle"]
 
-        for album_id in track["trackAlbumsId"]:
+        for album_id in track["trackAlbumsId"]: # might not need to do all this cus I think we're only using the first one in the end
             if album_id not in albums.keys():
                 albums[album_id] = get_album_details(base_url=base_url, headers=headers, country_code=country_code, album_id=album_id, return_artists=True)
 
@@ -165,9 +177,7 @@ def get_playlist_data(base_url: str, headers: str, country_code: str, playlist_i
                     if artist_id not in artists.keys():
                         artists[artist_id] = get_artist_details(base_url=base_url, headers=headers, country_code=country_code, artist_id=artist_id)["artistTitle"]
 
-        # Now we store all the track information into a nice and full dictionary
-        track_dict["albumArtist"] = [artists[artist_id] for artist_id in albums[track["trackAlbumsId"][0]]["albumArtistsId"]]
-        
+        # Now we store all the track information into a nice and full dictionary        
         track_dict["trackArtists"] = [artists[artist_id] for artist_id in track["trackArtistsId"]]
         track_dict["trackTitle"] = track["trackTitle"]
         track_dict["trackVersion"] = track["trackVersion"]

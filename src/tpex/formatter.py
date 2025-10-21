@@ -1,5 +1,6 @@
-import pandas as pd
 import re
+
+import pandas as pd
 
 """ Uses regex to convert the date from Tidal's YYYY-MM-DD format into Lime Blue's DD/MM/YY format """
 def format_date(date: str) -> str: # Just format the date how Limeblue likes it

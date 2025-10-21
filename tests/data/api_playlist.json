@@ -1,0 +1,63 @@
+{
+    "data": {
+        "id": "0dc0fa56-98d0-4c96-9931-72dfa47d2d01",
+        "type": "playlists",
+        "attributes": {
+            "name": "ILIRA",
+            "description": "",
+            "bounded": true,
+            "duration": "PT2H28M6S",
+            "numberOfItems": 45,
+            "externalLinks": [
+                {
+                    "href": "https://listen.tidal.com/playlist/0dc0fa56-98d0-4c96-9931-72dfa47d2d01",
+                    "meta": {
+                        "type": "TIDAL_SHARING"
+                    }
+                },
+                {
+                    "href": "https://tidal.com/playlist/0dc0fa56-98d0-4c96-9931-72dfa47d2d01?play=true",
+                    "meta": {
+                        "type": "TIDAL_AUTOPLAY_ANDROID"
+                    }
+                },
+                {
+                    "href": "https://tidal.com/playlist/0dc0fa56-98d0-4c96-9931-72dfa47d2d01?play=true",
+                    "meta": {
+                        "type": "TIDAL_AUTOPLAY_IOS"
+                    }
+                },
+                {
+                    "href": "https://listen.tidal.com/playlist/0dc0fa56-98d0-4c96-9931-72dfa47d2d01?play=true",
+                    "meta": {
+                        "type": "TIDAL_AUTOPLAY_WEB"
+                    }
+                }
+            ],
+            "createdAt": "2025-08-26T15:02:35.278Z",
+            "lastModifiedAt": "2025-09-11T14:53:45.717Z",
+            "accessType": "PUBLIC",
+            "playlistType": "USER"
+        },
+        "relationships": {
+            "owners": {
+                "links": {
+                    "self": "/playlists/0dc0fa56-98d0-4c96-9931-72dfa47d2d01/relationships/owners?countrCode=GB"
+                }
+            },
+            "coverArt": {
+                "links": {
+                    "self": "/playlists/0dc0fa56-98d0-4c96-9931-72dfa47d2d01/relationships/coverArt?countrCode=GB"
+                }
+            },
+            "items": {
+                "links": {
+                    "self": "/playlists/0dc0fa56-98d0-4c96-9931-72dfa47d2d01/relationships/items?countrCode=GB"
+                }
+            }
+        }
+    },
+    "links": {
+        "self": "/playlists/0dc0fa56-98d0-4c96-9931-72dfa47d2d01?countrCode=GB"
+    }
+}
